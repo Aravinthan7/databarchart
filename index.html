@@ -1,12 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GDP Bar Chart</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f7fa;
+      margin: 40px;
+      color: #222;
+      text-align: center;
+    }
+    #title {
+      font-size: 1.8em;
+      margin-bottom: 20px;
+    }
+    #container {
+      position: relative;
+      display: inline-block;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      border-radius: 5px;
+    }
+    svg {
+      display: block;
+      margin: 0 auto;
+      font-size: 12px;
+    }
+    .bar {
+      fill: steelblue;
+      cursor: pointer;
+    }
+    .bar:hover {
+      fill: orange;
+    }
+    #tooltip {
+      position: absolute;
+      background-color: rgba(0,0,0,0.8);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      font-size: 13px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+      white-space: nowrap;
+    }
+  </style>
 </head>
 <body>
-    
+  <h1 id="title">United States GDP (1947 - 2015)</h1>
+  <div id="container">
+    <svg id="chart"></svg>
+    <div id="tooltip"></div>
+  </div>
+
+  <script>
+    const url =
+      "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/GDP-data.json";
+
+    const margin = { top: 60, right: 40, bottom: 60, left: 80 },
+      width = 800 - margin.left - margin.right,
+      height = 400 - margin.top - margin.bottom;
+
+    const svg = d3
+      .select("#chart")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    const chart = svg
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const tooltip = d3.select("#tooltip");
+
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        const dataset = data.data;
+
+        // Parse dates
+        const parseDate = d3.timeParse("%Y-%m-%d");
+        const dates = dataset.map((d) => parseDate(d[0]));
+        const gdps = dataset.map((d) => d[1]);
+
+        // scales
+        const xScale = d3
+          .scaleTime()
+          .domain([d3.min(dates), d3.max(dates)])
+          .range([0, width]);
+
+        const yScale = d3
+          .scaleLinear()
+          .domain([0, d3.max(gdps)])
+          .range([height, 0]);
+
+        // axes
+        const xAxis = d3.axisBottom(xScale);
+        const yAxis = d3.axisLeft(yScale);
+
+        chart
+          .append("g")
+          .attr("id", "x-axis")
+          .attr("transform", `translate(0, ${height})`)
+          .call(xAxis);
+
+        chart.append("g").attr("id", "y-axis").call(yAxis);
+
+        // bar width (approximate)
+        const barWidth = width / dataset.length;
+
+        // draw bars
+        chart
+          .selectAll(".bar")
+          .data(dataset)
+          .enter()
+          .append("rect")
+          .attr("class", "bar")
+          .attr("data-date", (d) => d[0])
+          .attr("data-gdp", (d) => d[1])
+          .attr("x", (d) => xScale(parseDate(d[0])))
+          // Correct the bar x position by shifting left by half barWidth to avoid visual gaps:
+          .attr("width", barWidth + 1)
+          .attr("y", (d) => yScale(d[1]))
+          .attr("height", (d) => height - yScale(d[1]))
+          .on("mouseover", function(event, d) {
+            const [pageX, pageY] = [event.pageX, event.pageY];
+            tooltip
+              .style("opacity", 0.9)
+              .attr("data-date", d[0])
+              .html(
+                `<strong>Date:</strong> ${d[0]}<br><strong>GDP:</strong> $${d[1].toLocaleString()} Billion`
+              )
+              .style("left", pageX + 15 + "px")
+              .style("top", pageY - 40 + "px");
+            d3.select(this).style("fill", "orange");
+          })
+          .on("mouseout", function() {
+            tooltip.style("opacity", 0);
+            d3.select(this).style("fill", "steelblue");
+          });
+      });
+  </script>
 </body>
-<script></script>
 </html>
